@@ -1,4 +1,5 @@
 from datetime import datetime
+import asyncio
 
 from .imessage_reader import fetch_data
 from .py_imessage import imessage
@@ -33,47 +34,49 @@ class MessageClient:
     def _parse_time(self, dt):
         return datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
 
-    def _get_messages(self, no_filter=False):
+    async def _get_messages(self, no_filter=False):
         fd = fetch_data.FetchData(self.db_path)
-        my_data = fd.get_messages()
+        my_data = await fd.get_messages()
 
         if no_filter:
             return my_data
 
         return [m for m in my_data if self._parse_time(m[2]) > self.time_filter]
 
-    def _get_inbound_messages(self, no_filter=False):
-        messages = self._get_messages(no_filter)
+    async def _get_inbound_messages(self, no_filter=False):
+        messages = await self._get_messages(no_filter)
         return [m for m in messages if m[-1] != 1]
 
-    def _number_requested_stop(self, number):
-        messages = self._get_inbound_messages(no_filter=True)
-        return (number in m[0] and m[1] == "STOP" for m in messages)
+    async def _number_requested_stop(self, number):
+        messages = await self._get_inbound_messages(no_filter=True)
+        return any(number in m[0] and m[1] == "STOP" for m in messages)
 
-    def send_message(self, to, content, ignore_stop=False):
-        if not ignore_stop and self._number_requested_stop(to):
+    async def send_message(self, to, content, ignore_stop=True, use_applescript=True):
+        if not ignore_stop and await self._number_requested_stop(to):
             # To comply with US law, you'll need to stop when the user requests. 
             return
 
-        imessage.send(to, content)
+        await imessage.send(to, content, use_applescript)
 
-    def handle_message(self, from_number, body):
-        raise NotImplemented
+    async def handle_message(self, from_number, body):
+        # Optional, can be overwritten by kwargs["handle_message"]
+        pass
 
-    def post_read_and_handle(self, *args, **kwargs):
+    async def post_read_and_handle(self, *args, **kwargs):
         # Optional, can be overwritten by kwargs["handle_post_read"]
         pass
 
-    def read_and_handle(self):
-        messages = self._get_inbound_messages()
+    async def read_and_handle(self):
+        messages = await self._get_inbound_messages()
         for m in messages:
             h = self._hash_message_for_cache(m)
             if h not in self.read_messages_cache:
                 self.read_messages_cache[h] = True
                 from_number = m[0]
                 body = m[1]
-                possible_reply = self.handle_message(from_number, body)
+                possible_reply = await self.handle_message(from_number, body)
+                print(f"Sending message to {from_number} with body {possible_reply}")
                 if possible_reply is not None:
-                    self.send_message(from_number, possible_reply)
+                    await self.send_message(from_number, possible_reply)
 
-        self.post_read_and_handle(self)
+        await self.post_read_and_handle(self)

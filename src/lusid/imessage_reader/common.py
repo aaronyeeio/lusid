@@ -9,7 +9,7 @@ Date modified: July 3rd, 2023
 """
 
 import platform
-import sqlite3
+import aiosqlite
 import sys
 from enum import Enum
 
@@ -41,7 +41,7 @@ def get_platform() -> str:
     raise NotImplementedError(f"Platform {system} is not supported yet!")
 
 
-def fetch_db_data(db, command) -> list:
+async def fetch_db_data(db, command) -> list:
     """Send queries to the sqlite database and return the results.
 
     :param db: the path to the database
@@ -49,9 +49,8 @@ def fetch_db_data(db, command) -> list:
     :return: data from the database
     """
     try:
-        conn = sqlite3.connect(db)
-        cur = conn.cursor()
-        cur.execute(command)
-        return cur.fetchall()
+        async with aiosqlite.connect(db) as conn:
+            cursor = await conn.execute(command)
+            return await cursor.fetchall()
     except Exception as e:
         sys.exit(f"Error reading the database: {e}\nDid you specify the correct path?")

@@ -1,10 +1,10 @@
 from datetime import datetime
-from time import sleep
+import asyncio
 
 from .message_client import MessageClient
 
 
-def create_simple_message_client(message_handler, interval=1, handle_post_read=None):
+async def create_simple_message_client(message_handler, interval=0.1, handle_post_read=None):
     time_of_run = datetime.now()
     
     mc = MessageClient(
@@ -14,10 +14,10 @@ def create_simple_message_client(message_handler, interval=1, handle_post_read=N
     )
 
     while True:
-        sleep(interval)
+        await asyncio.sleep(interval)
 
         try:
-            mc.read_and_handle()
+            await mc.read_and_handle()
         except Exception as e: # Very failure tolerant
             print("Exception!")
             print(e)

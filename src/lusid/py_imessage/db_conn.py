@@ -1,11 +1,12 @@
 # db.py 
 
 # Connect to
-import sqlite3
+import aiosqlite
 import os 
 import datetime
 import math
 import pytz
+import asyncio
 
 # Works for mac Catalina
 home = os.environ['HOME']
@@ -13,16 +14,19 @@ db_path = f'{home}/Library/Messages/chat.db'
 
 db = None
 
-def open():
+async def open():
     global db
     if db:
         return db
     # Read only mode
-    db = sqlite3.connect(db_path, uri=True)
+    db = await aiosqlite.connect(db_path, uri=True)
+    return db
 
-def clean_up():
+async def clean_up():
+    global db
     if db:
-        db.close()
+        await db.close()
+        db = None
 
 DATE_OFFSET = 978307200
 
@@ -44,20 +48,23 @@ def unpack_time(ts):
 def pack_time_conditionally(ts):
     return ts * 10**9
 
-def get_most_recently_sent_text():
-    return db.execute("""SELECT guid, id as handle, text, date, date_read, date_delivered
+async def get_most_recently_sent_text():
+    cursor = await db.execute("""SELECT guid, id as handle, text, date, date_read, date_delivered
     FROM message
     LEFT OUTER JOIN handle ON message.handle_id=handle.ROWID
     WHERE is_from_me = 1 
     ORDER BY date DESC
-    LIMIT 1""").fetchone()[0]
+    LIMIT 1""")
+    result = await cursor.fetchone()
+    return result[0]
 
-def get_message(guid): 
-    message = db.execute(f"""SELECT guid, date, date_read, date_delivered
+async def get_message(guid): 
+    cursor = await db.execute(f"""SELECT guid, date, date_read, date_delivered
     FROM message
     LEFT OUTER JOIN handle ON message.handle_id=handle.ROWID
     WHERE is_from_me = 1 and guid="{guid}"
-    LIMIT 1""").fetchone()
+    LIMIT 1""")
+    message = await cursor.fetchone()
 
     return {
         'guid': message[0],

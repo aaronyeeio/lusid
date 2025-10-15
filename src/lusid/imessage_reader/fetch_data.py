@@ -59,13 +59,13 @@ class FetchData:
         if self.operating_system == "WINDOWS":
             sys.exit("Your operating system is not supported yet!")
 
-    def _read_database(self) -> list:
+    async def _read_database(self) -> list:
         """Fetch data from the database and store the data in a list.
 
         :return: list containing the user id, messages, the service and the account
         """
 
-        rval = common.fetch_db_data(self.db_path, self.SQL_CMD)
+        rval = await common.fetch_db_data(self.db_path, self.SQL_CMD)
 
         data = []
         for row in rval:
@@ -107,7 +107,7 @@ class FetchData:
 
         return data
 
-    def show_user_txt(self, export: str):
+    async def show_user_txt(self, export: str):
         """Invoke _read_database(), print fetched data and export data.
         (This method is for CLI usage.)
 
@@ -118,7 +118,7 @@ class FetchData:
         self._check_system()
 
         # Read chat.db
-        fetched_data = self._read_database()
+        fetched_data = await self._read_database()
 
         # CLI output
         if export == "nothing":
@@ -135,7 +135,7 @@ class FetchData:
 
         # Show all recipients
         if export == "recipients":
-            self._get_recipients()
+            await self._get_recipients()
 
     def _export_excel(self, data: list):
         """Export data (write Excel file)
@@ -157,11 +157,11 @@ class FetchData:
         cd = create_sqlite.CreateDatabase(data, file_path)
         cd.create_sqlite_db()
 
-    def _get_recipients(self):
+    async def _get_recipients(self):
         """Create a list containing all recipients and
         show the recipients in the command line.
         """
-        fetched_data = self._read_database()
+        fetched_data = await self._read_database()
 
         # Create a list with recipients
         recipients = [i.user_id for i in fetched_data if i.is_from_me == 0]
@@ -174,13 +174,13 @@ class FetchData:
         for recipient in recipients:
             print(recipient)
 
-    def get_messages(self) -> list:
+    async def get_messages(self) -> list:
         """Create a list with tuples (user id, message, date, service, account, is_from_me)
         (This method is for module usage.)
 
         :return: list with tuples (user id, message, date, service, account, is_from_me)
         """
-        fetched_data = self._read_database()
+        fetched_data = await self._read_database()
 
         users = []
         messages = []

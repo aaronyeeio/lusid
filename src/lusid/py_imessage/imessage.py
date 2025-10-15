@@ -1,8 +1,7 @@
 from . import db_conn
 import os
-import subprocess
+import asyncio
 import platform
-from time import sleep
 from shlex import quote
 
 import sys
@@ -21,30 +20,31 @@ def _check_mac_ver():
     return mac_ver
         
 
-def send(phone, message):
+async def send(phone, message, use_applescript=True):
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    relative_path = 'osascript/send_message.js'
+    relative_path = 'osascript/send_imessage.applescript' if use_applescript else 'osascript/send_message.js'
     path = f'{dir_path}/{relative_path}'
-    cmd = f'osascript -l JavaScript {path} {quote(phone)} {quote(message)}'
-    subprocess.call(cmd, shell=True)
-
-    # Get chat message db that was sent (look at most recently sent to a phone number)
-    db_conn.open()
+    if use_applescript:
+        cmd = f'osascript {path} {quote(phone)} {quote(message)}'
+    else:
+        cmd = f'osascript -l JavaScript {path} {quote(phone)} {quote(message)}'
     
-    # Option 1: Loop until result is valid (hard to determine validity without adding other info to the DB)
-    # Option 2: Sleep for 1 sec to allow local db to update :((
-    sleep(1)
-    guid = db_conn.get_most_recently_sent_text()
-    return guid
+    # Run subprocess asynchronously
+    process = await asyncio.create_subprocess_shell(
+        cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    await process.wait()
 
 
-def status(guid):
-    db_conn.open()
-    message = db_conn.get_message(guid)
+async def status(guid):
+    await db_conn.open()
+    message = await db_conn.get_message(guid)
     return message
 
 
-def check_compatibility(phone):
+async def check_compatibility(phone):
     mac_ver = _check_mac_ver()
     is_imessage = False
     
@@ -52,10 +52,16 @@ def check_compatibility(phone):
     relative_path = 'osascript/check_imessage.js'
     path = f'{dir_path}/{relative_path}'
     cmd = f'osascript -l JavaScript {path} {phone} {mac_ver}'
-    # Gets all the output from the imessage
-    output = subprocess.check_output(cmd, shell=True)
-
-    if 'true' in output.decode('utf-8'):
+    
+    # Run subprocess asynchronously
+    process = await asyncio.create_subprocess_shell(
+        cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate()
+    
+    if 'true' in stdout.decode('utf-8'):
         is_imessage = True
 
     return is_imessage

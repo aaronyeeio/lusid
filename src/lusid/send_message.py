@@ -1,6 +1,6 @@
 from .message_client import MessageClient
 
 
-def send_message(to, body, ignore_stop=False):
+async def send_message(to, body, ignore_stop=False, use_applescript=True):
     mc = MessageClient()
-    mc.send_message(to, body, ignore_stop)
+    await mc.send_message(to, body, ignore_stop, use_applescript)

@@ -12,6 +12,7 @@ Date modified: June 2nd, 2023
 import argparse
 import os
 import sys
+import asyncio
 
 from os.path import expanduser
 
@@ -68,21 +69,21 @@ def get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def check_database_path(args):
+async def check_database_path(args):
     """ Parse arguments from sys.argv and invoke the evaluate method.
 
     :param args: the user's input
     """
     if args.path == MACOS_DB_PATH:
-        evaluate(MACOS_DB_PATH, args.output, args.recipients, args.version)
+        await evaluate(MACOS_DB_PATH, args.output, args.recipients, args.version)
     elif os.path.isdir(args.path):
         db_path = args.path + "/chat.db"
-        evaluate(db_path, args.output, args.recipients, args.version)
+        await evaluate(db_path, args.output, args.recipients, args.version)
     else:
         sys.exit("Path doesn't exist! Exit program.")
 
 
-def evaluate(path: str, output: str, recipients: bool, version: bool):
+async def evaluate(path: str, output: str, recipients: bool, version: bool):
     """Evaluate the given options and perform the appropriate actions.
 
     :param path: path to the chat.db file
@@ -97,15 +98,15 @@ def evaluate(path: str, output: str, recipients: bool, version: bool):
         sys.exit()
 
     if recipients:
-        data.show_user_txt("recipients")
+        await data.show_user_txt("recipients")
         sys.exit()
 
     if output == "e" or output == "excel":
-        data.show_user_txt("excel")
+        await data.show_user_txt("excel")
     elif output == "s" or output == "sqlite" or output == "sqlite3":
-        data.show_user_txt("sqlite")
+        await data.show_user_txt("sqlite")
     else:
-        data.show_user_txt("nothing")
+        await data.show_user_txt("nothing")
 
 
 def main():
@@ -113,7 +114,7 @@ def main():
     """
     parser = get_parser()
     args = parser.parse_args()
-    check_database_path(args)
+    asyncio.run(check_database_path(args))
 
 
 if __name__ == "__main__":
