@@ -51,12 +51,12 @@ class MessageClient:
         messages = await self._get_inbound_messages(no_filter=True)
         return any(number in m[0] and m[1] == "STOP" for m in messages)
 
-    async def send_message(self, to, content, ignore_stop=True, use_applescript=True):
+    async def send_message(self, to, content, ignore_stop=True, use_applescript=True, create_contact=True):
         if not ignore_stop and await self._number_requested_stop(to):
             # To comply with US law, you'll need to stop when the user requests. 
             return
 
-        await imessage.send(to, content, use_applescript)
+        await imessage.send(to, content, use_applescript, create_contact)
 
     async def handle_message(self, from_number, body):
         # Optional, can be overwritten by kwargs["handle_message"]
